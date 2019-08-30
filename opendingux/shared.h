@@ -35,7 +35,7 @@
 // Stella dependencies
 #include "Console.hxx"
 #include "Joystick.hxx"
-#include "Mediasrc.hxx"
+#include "MediaSrc.hxx"
 #include "Paddles.hxx"
 #include "Sound.hxx"
 #include "SoundSDL.hxx"

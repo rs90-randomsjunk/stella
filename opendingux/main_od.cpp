@@ -1,3 +1,8 @@
+/* Gameblabla : 
+ * Support for the RS90. (though the code can also support other resolutions)
+ * Support for a HOME folder
+ * */
+
 #include  <sys/time.h>
 
 #include "shared.h"
@@ -23,6 +28,8 @@ Sound* theSDLSnd = (Sound*) NULL;
 uInt8* filebuffer = 0;
 uInt32 console_controleurtype = 0;
 
+char home_path[512];
+
 unsigned short stella_palette[256];
 
 unsigned long SDL_UXTimerRead(void) {
@@ -35,55 +42,29 @@ unsigned long SDL_UXTimerRead(void) {
 void graphics_paint(void) {
 	unsigned short *buffer_scr = (unsigned short *) actualScreen->pixels;
 	unsigned char *buffer_flip = (unsigned char *) &vidBuf;
-	unsigned int W,H,ix,iy,x,y, xfp,yfp;
+	unsigned int W,H,ix,iy,x,y;
 	static char buffer[32];
 
 	if(SDL_MUSTLOCK(actualScreen)) SDL_LockSurface(actualScreen);
 	
-	if (GameConf.m_ScreenRatio) { // Full screen
-		x=0;
-		y=0; 
-		W=320;
-		H=240;
-		ix=(SYSVID_WIDTH<<16)/W;
-		iy=(SYSVID_HEIGHT<<16)/H;
-		xfp = 300;yfp = 1;
+	x=0;
+	y=0; 
+	W=actualScreen->w;
+	H=actualScreen->h;
+	ix=(SYSVID_WIDTH<<16)/W;
+	iy=(SYSVID_HEIGHT<<16)/H;
+	do   
+	{
+		unsigned char *buffer_mem=(buffer_flip+((y>>16)*SYSVID_WIDTH));
+		W=actualScreen->w; x=0;
+		do 
+		{
+			*buffer_scr++=stella_palette[buffer_mem[x>>16]];
+			x+=ix;
+		} while (--W);
+		y+=iy;
+	} while (--H);
 
-		do   
-		{
-			unsigned char *buffer_mem=(buffer_flip+((y>>16)*SYSVID_WIDTH));
-			W=320; x=0;
-			do {
-				*buffer_scr++=stella_palette[buffer_mem[x>>16]];
-				x+=ix;
-			} while (--W);
-			y+=iy;
-		} while (--H);
-	}
-	else { // Original show
-		x=((screen->w - SYSVID_WIDTH)/2);
-		y=((screen->h - SYSVID_HEIGHT)/2); 
-		W=SYSVID_WIDTH;
-		H=SYSVID_HEIGHT;
-		ix=(SYSVID_WIDTH<<16)/W;
-		iy=(SYSVID_HEIGHT<<16)/H;
-		xfp = (x+SYSVID_WIDTH)-20;yfp = y+1;
-		
-		buffer_scr += (y)*320;
-		buffer_scr += (x);
-		do   
-		{
-			unsigned char *buffer_mem=(buffer_flip+((y>>16)*SYSVID_WIDTH));
-			W=SYSVID_WIDTH; x=((screen->w - SYSVID_WIDTH)/2);
-			do {
-				*buffer_scr++=stella_palette[buffer_mem[x>>16]];
-				x+=ix;
-			} while (--W);
-			y+=iy;
-			buffer_scr += actualScreen->pitch - 320 - SYSVID_WIDTH;
-		} while (--H);
-	}
-	
 	pastFPS++;
 	newTick = SDL_UXTimerRead();
 	if ((newTick-lastTick)>1000000) {
@@ -94,7 +75,7 @@ void graphics_paint(void) {
 
 	if (GameConf.m_DisplayFPS) {
 		sprintf(buffer,"%02d",FPS);
-		print_string_video(xfp,yfp,buffer);
+		print_string_video(0,0,buffer);
 	}
 		
 	if (SDL_MUSTLOCK(actualScreen)) SDL_UnlockSurface(actualScreen);
@@ -116,7 +97,7 @@ void initSDL(void) {
 	}
 	atexit(SDL_Quit);
 
-	actualScreen = SDL_SetVideoMode(320, 240, 16, SDL_DOUBLEBUF | SDL_HWSURFACE );
+	actualScreen = SDL_SetVideoMode(240, 160, 16, SDL_DOUBLEBUF | SDL_HWSURFACE );
 	if(actualScreen == NULL) {
 		fprintf(stderr, "Couldn't set video mode: %s\n", SDL_GetError());
 		exit(1);
@@ -138,17 +119,17 @@ void initSDL(void) {
 	}
 
 	// Init new layer to add background and text
-	layer = SDL_CreateRGBSurface(SDL_SWSURFACE, 320, 240, 16, 0,0,0,0);
+	layer = SDL_CreateRGBSurface(SDL_SWSURFACE, actualScreen->w, actualScreen->h, 16, 0,0,0,0);
 	if(layer == NULL) {
 		fprintf(stderr, "Couldn't create surface: %s\n", SDL_GetError());
 		exit(1);
 	}
-	layerback = SDL_CreateRGBSurface(SDL_SWSURFACE, 320, 240, 16, 0,0,0,0);
+	layerback = SDL_CreateRGBSurface(SDL_SWSURFACE, actualScreen->w, actualScreen->h, 16, 0,0,0,0);
 	if(layerback == NULL) {
 		fprintf(stderr, "Couldn't create surface: %s\n", SDL_GetError());
 		exit(1);
 	}
-	layerbackgrey = SDL_CreateRGBSurface(SDL_SWSURFACE, 320, 240, 16, 0,0,0,0);
+	layerbackgrey = SDL_CreateRGBSurface(SDL_SWSURFACE, actualScreen->w, actualScreen->h, 16, 0,0,0,0);
 	if(layerbackgrey == NULL) {
 		fprintf(stderr, "Couldn't create surface: %s\n", SDL_GetError());
 		exit(1);
@@ -156,10 +137,10 @@ void initSDL(void) {
 
 
 	// Init sound
-	spec.freq = 44100;
-	spec.format = AUDIO_U8;
+	spec.freq = 22050;
+	spec.format = AUDIO_S16SYS;
 	spec.channels = 1;
-	spec.samples = 44100/60;
+	spec.samples = 22050/60;
 	spec.callback = audio_callback;
 	spec.userdata = NULL;
 
@@ -216,9 +197,9 @@ int main(int argc, char *argv[]) {
 	unsigned int index;
 	double period;
 
-	// Get init file directory & name
-	getcwd(current_conf_app, MAX__PATH);
-	sprintf(current_conf_app,"%s//race.cfg",current_conf_app);
+	snprintf(home_path, sizeof(home_path), "%s/.stella", getenv("HOME"));
+	snprintf(current_conf_app, sizeof(current_conf_app), "%s/stella.cfg", home_path);
+	mkdir(home_path, 0755);
 	
 	// Init graphics & sound
 	initSDL();
@@ -277,8 +258,8 @@ int main(int argc, char *argv[]) {
 				graphics_paint();
 
 				// Wait for keys
-				theConsole->eventHandler().sendKeyEvent(StellaEvent::KCODE_SPACE, (keys[SDLK_LCTRL] == SDL_PRESSED));
-				
+				theConsole->eventHandler().sendKeyEvent(StellaEvent::KCODE_SPACE, (keys[SDLK_LCTRL] || keys[SDLK_LALT] || keys[SDLK_LSHIFT] || keys[SDLK_BACKSPACE] || keys[SDLK_TAB]));
+
 				theConsole->eventHandler().sendKeyEvent(StellaEvent::KCODE_UP,    (keys[SDLK_UP] == SDL_PRESSED));
 				theConsole->eventHandler().sendKeyEvent(StellaEvent::KCODE_DOWN,  (keys[SDLK_DOWN] == SDL_PRESSED));
 				theConsole->eventHandler().sendKeyEvent(StellaEvent::KCODE_LEFT,  (keys[SDLK_LEFT] == SDL_PRESSED));
@@ -292,11 +273,12 @@ int main(int argc, char *argv[]) {
 				theConsole->eventHandler().sendKeyEvent(StellaEvent::KCODE_F6, 0);
 
 				
-				if ((keys[SDLK_ESCAPE] == SDL_PRESSED) && (keys[SDLK_RETURN] == SDL_PRESSED )) { 
+				if ((keys[SDLK_ESCAPE] == SDL_PRESSED)) 
+				{ 
 					m_Flag = GF_MAINUI;
 				}
 				else if ( (keys[SDLK_RETURN] == SDL_PRESSED) )  { theConsole->eventHandler().sendKeyEvent(StellaEvent::KCODE_F1, 1); } // 
-				else if ( (keys[SDLK_ESCAPE] == SDL_PRESSED) ) {  } // OPTIONS
+				//else if ( (keys[SDLK_ESCAPE] == SDL_PRESSED) ) {  } // OPTIONS
 				
 				nextTick += interval;
 				break;

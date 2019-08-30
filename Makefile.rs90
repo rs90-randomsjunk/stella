@@ -1,8 +1,8 @@
 PRGNAME     = stella-od
 
 EXESUFFIX = .elf
-CC          = gcc
-CXX          = g++
+CC          = /opt/rs90-toolchain/bin/mipsel-linux-gcc
+CXX          = /opt/rs90-toolchain/bin/mipsel-linux-g++
 
 
 # add SDL dependencies
@@ -10,9 +10,9 @@ SDL_LIB     =
 SDL_INCLUDE = 
 INCLUDES = -I./emucore -I./common
 
-CFLAGS      = -O3 -g3 -Wall $(INCLUDES) 
+CFLAGS      = -Ofast -fdata-sections -ffunction-sections -fno-PIC -mips32 -mno-mips16 -mno-interlink-mips16 -mno-abicalls -flto -mips32 -Wall $(INCLUDES) 
 CXXFLAGS    = $(CFLAGS) 
-LDFLAGS     = -L$(SDL_LIB) $(CC_OPTS) -lstdc++ -lSDL 
+LDFLAGS     = -L$(SDL_LIB) $(CC_OPTS) -lstdc++ -lSDL -lasound -flto -s
 
 # Files to be compiled
 SRCDIR   =  ./emucore ./common ./opendingux .
@@ -26,7 +26,6 @@ OBJS     = $(OBJ_C) $(OBJ_CP)
 # Rules to make executable
 $(PRGNAME)$(EXESUFFIX): $(OBJS)  
 	$(CXX) $(CFLAGS) -o $(PRGNAME)$(EXESUFFIX) $^ $(LDFLAGS)
-
 
 $(OBJ_C) : %.o : %.c
 	$(CC) $(CFLAGS) -c -o $@ $<

@@ -1,4 +1,11 @@
+/* Gameblabla : 
+ * Support for the RS90. (though the code can also support other resolutions)
+ * Support for a HOME folder
+ * */
+
 #include <dirent.h>
+#include <time.h>
+#include <libgen.h>
 
 #include "shared.h"
 
@@ -188,16 +195,16 @@ char mnuButtons[7][16] = {
 };
 
 MENUITEM MainMenuItems[] = {
-	{"Load rom", NULL, 0, NULL, &menuFileBrowse},
+	//{"Load rom", NULL, 0, NULL, &menuFileBrowse},
 	{"Continue", NULL, 0, NULL, &menuContinue},
 	{"Reset", NULL, 0, NULL, &menuReset},
-	{"Ratio: ", (int *) &GameConf.m_ScreenRatio, 1, (char *) &mnuRatio, NULL},
-	{"Button Settings", NULL, 0, NULL, &screen_showkeymenu},
+	//{"Ratio: ", (int *) &GameConf.m_ScreenRatio, 1, (char *) &mnuRatio, NULL},
+	//{"Button Settings", NULL, 0, NULL, &screen_showkeymenu},
 	{"Take Screenshot", NULL, 0, NULL, &menuSaveBmp},
 	{"Show FPS: ", (int *) &GameConf.m_DisplayFPS, 1,(char *) &mnuYesNo, NULL},
 	{"Exit", NULL, 0, NULL, &menuQuit}
 };
-MENU mnuMainMenu = { 8, 0, (MENUITEM *) &MainMenuItems };
+MENU mnuMainMenu = { 5, 0, (MENUITEM *) &MainMenuItems };
 
 MENUITEM ConfigMenuItems[] = {
 	{"Button A: ", (int *) &GameConf.OD_Joy[4], 6, (char *)  &mnuButtons, NULL},
@@ -470,15 +477,12 @@ void screen_showmainmenu(MENU *menu) {
 			screen_showmenu(menu); // show menu items
 			if (menu == &mnuMainMenu) {
 				if (cartridge_IsLoaded()) {
-#ifdef _OPENDINGUX_
-					sprintf(szVal,"Game:%s",strrchr(gameName,'/')+1);szVal[(320/6)-2] = '\0'; 
-#else
-					sprintf(szVal,"Game:%s",strrchr(gameName,'\\')+1);szVal[(320/6)-2] = '\0'; 
-#endif
+					/*sprintf(szVal,"Game:%s",strrchr(gameName,'/')+1);
+					szVal[(320/6)-2] = '\0'; 
 					print_string(szVal, COLOR_LIGHT,COLOR_BG, 8,240-2-10-10);
 					sprintf(szVal,"CRC:%08X",gameCRC); 
 					print_string(szVal, COLOR_LIGHT, COLOR_BG,8,240-2-10);
-					if (isSta) print_string("Load state available",COLOR_INFO, COLOR_BG,8+104,240-2-10);
+					if (isSta) print_string("Load state available",COLOR_INFO, COLOR_BG,8+104,240-2-10);*/
 				}
 			}
 		}
@@ -529,22 +533,6 @@ int system_is_load_state(void) {
 	}
 	
 	return (n ? 1 : 0);
-}
-
-// find a filename for bmp or state saving 
-void findNextFilename(char *szFileFormat, char *szFilename) {
-	uint32_t uBcl;
-	int fp;
-  
-	for (uBcl = 0; uBcl<999; uBcl++) {
-		sprintf(szFilename,szFileFormat,uBcl);
-		fp = open(szFilename,O_RDONLY | O_BINARY);
-		if (fp <0) break;
-		close(fp);
-	}
-	if (uBcl == 1000)
-		strcpy(szFilename,"NOSLOT");
-	if (fp>=0) close(fp);
 }
 
 // Reset current game
@@ -739,11 +727,7 @@ signed int load_file(char **wildcards, char *result) {
 					else {
 						repeat = 0;
 						return_value = 0;
-#ifdef _OPENDINGUX_
 						sprintf(result, "%s/%s", current_dir_name, filedir_list[current_filedir_selection].name);
-#else
-						sprintf(result, "%s\\%s", current_dir_name, filedir_list[current_filedir_selection].name);
-#endif
 					}
 				}
 			}
@@ -857,29 +841,57 @@ void menuFileBrowse(void) {
 	}
 }
 
+char *remove_ext (char* mystr, char dot, char sep) {
+    char *retstr, *lastdot, *lastsep;
+
+    // Error checks and allocate string.
+
+    if (mystr == NULL)
+        return NULL;
+    if ((retstr = (char*)malloc(strlen (mystr) + 1)) == NULL)
+        return NULL;
+
+    // Make a copy and find the relevant characters.
+
+    strcpy (retstr, mystr);
+    lastdot = strrchr (retstr, dot);
+    lastsep = (sep == 0) ? NULL : strrchr (retstr, sep);
+
+    // If it has an extension separator.
+
+    if (lastdot != NULL) {
+        // and it's before the extenstion separator.
+
+        if (lastsep != NULL) {
+            if (lastsep < lastdot) {
+                // then remove it.
+
+                *lastdot = '\0';
+            }
+        } else {
+            // Has extension separator with no path separator.
+
+            *lastdot = '\0';
+        }
+    }
+
+    // Return the modified string.
+
+    return retstr;
+}
+
 // Take a screenshot of current game
 void menuSaveBmp(void) {
-    char szFile[512], szFile1[512];
+	extern char home_path[512];
+    char szFile[512];
+    time_t t;
+    struct tm tm;
 	
 	if (cartridge_IsLoaded()) {
-#ifdef _OPENDINGUX_
-		sprintf(szFile,"./%s",strrchr(gameName,'/')+1);
-#else
-		sprintf(szFile,".\\%s",strrchr(gameName,'\\')+1);
-#endif
-		szFile[strlen(szFile)-8] = '%';
-		szFile[strlen(szFile)-7] = '0';
-		szFile[strlen(szFile)-6] = '3';
-		szFile[strlen(szFile)-5] = 'd';
-		szFile[strlen(szFile)-4] = '.';
-		szFile[strlen(szFile)-3] = 'b';
-		szFile[strlen(szFile)-2] = 'm';
-		szFile[strlen(szFile)-1] = 'p';
-
-		print_string("Saving...", COLOR_OK, COLOR_BG, 8,240-5 -10*3);
-		screen_flip();
-		findNextFilename(szFile,szFile1);
-		SDL_SaveBMP(layerback, szFile1);
+		t = time(NULL);
+		tm = *localtime(&t);
+		snprintf(szFile, sizeof(szFile), "%s/%s_%d-%d-%d_%d:%d:%d.bmp", home_path, remove_ext (gameName, '.', '/'), tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+		SDL_SaveBMP(layerback, szFile);
 		print_string("Screen saved !", COLOR_OK, COLOR_BG, 8+10*8,240-5 -10*3);
 		screen_flip();
 		screen_waitkey();

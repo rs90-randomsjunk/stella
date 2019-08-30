@@ -1,0 +1,9 @@
+*.gcda
+*.o
+*.elf
+*.dge
+*.a
+*.bin
+*.a26
+*.cfg
+*.opk
