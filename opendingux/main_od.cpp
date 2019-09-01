@@ -97,7 +97,7 @@ void initSDL(void) {
 	}
 	atexit(SDL_Quit);
 
-	actualScreen = SDL_SetVideoMode(240, 160, 16, SDL_DOUBLEBUF | SDL_HWSURFACE );
+	actualScreen = SDL_SetVideoMode(240, 160, 16, SDL_TRIPLEBUF | SDL_HWSURFACE );
 	if(actualScreen == NULL) {
 		fprintf(stderr, "Couldn't set video mode: %s\n", SDL_GetError());
 		exit(1);
@@ -137,10 +137,10 @@ void initSDL(void) {
 
 
 	// Init sound
-	spec.freq = 22050;
-	spec.format = AUDIO_S16SYS;
+	spec.freq = 44100;
+	spec.format = AUDIO_U8;
 	spec.channels = 1;
-	spec.samples = 22050/60;
+	spec.samples = 44100/60;
 	spec.callback = audio_callback;
 	spec.userdata = NULL;
 
