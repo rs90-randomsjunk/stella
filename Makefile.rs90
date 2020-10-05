@@ -11,7 +11,7 @@ SDL_INCLUDE =
 INCLUDES = -I./emucore -I./common
 
 CFLAGS		= -Ofast -fdata-sections -ffunction-sections -mno-fp-exceptions -mno-check-zero-division -mframe-header-opt -fno-common -flto -fsingle-precision-constant -march=mips32 -mtune=mips32 -Wall $(INCLUDES) 
-CFLAGS		+= -falign-functions=1 -falign-jumps=1 -falign-loops=1 -falign-labels=1
+CFLAGS		+= -falign-functions=1 -falign-jumps=1 -falign-loops=1 -falign-labels=1 -mplt
 
 LDFLAGS     += -lc -lgcc -lstdc++ -lSDL -lasound -Wl,--as-needed -Wl,--gc-sections -flto -s
 
