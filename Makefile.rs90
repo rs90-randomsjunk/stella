@@ -3,16 +3,26 @@ PRGNAME     = stella-od
 EXESUFFIX = .elf
 CC          = /opt/rs90-toolchain/bin/mipsel-linux-gcc
 CXX          = /opt/rs90-toolchain/bin/mipsel-linux-g++
-
+PROFILE = APPLY
 
 # add SDL dependencies
 SDL_LIB     = 
 SDL_INCLUDE = 
 INCLUDES = -I./emucore -I./common
 
-CFLAGS      = -Ofast -fdata-sections -ffunction-sections -fno-PIC -mips32 -mno-mips16 -mno-interlink-mips16 -mno-abicalls -flto -mips32 -Wall $(INCLUDES) 
+CFLAGS		= -Ofast -fdata-sections -ffunction-sections -mno-fp-exceptions -mno-check-zero-division -mframe-header-opt -fno-common -flto -fsingle-precision-constant -march=mips32 -mtune=mips32 -Wall $(INCLUDES) 
+CFLAGS		+= -falign-functions=1 -falign-jumps=1 -falign-loops=1 -falign-labels=1
+
+LDFLAGS     += -lc -lgcc -lstdc++ -lSDL -lasound -Wl,--as-needed -Wl,--gc-sections -flto -s
+
+ifeq ($(PROFILE), YES)
+CFLAGS 	+= -fprofile-generate="/media/data/local/home"
+LDFLAGS  	+= -lgcov
+else ifeq ($(PROFILE), APPLY)
+CFLAGS		+= -fprofile-use -fbranch-probabilities
+endif
 CXXFLAGS    = $(CFLAGS) 
-LDFLAGS     = -L$(SDL_LIB) $(CC_OPTS) -lstdc++ -lSDL -lasound -flto -s
+
 
 # Files to be compiled
 SRCDIR   =  ./emucore ./common ./opendingux .
